@@ -1,0 +1,77 @@
+#!/bin/zsh
+
+
+for input_file in "$@"; do
+  # Prompt for trim start
+  trim_start=$(osascript -e 'text returned of (display dialog "Trim how many seconds from the START?" default answer "" with title "Video Trimmer")')
+
+
+  # Prompt for trim end
+  trim_end=$(osascript -e 'text returned of (display dialog "Trim how many seconds from the END?" default answer "" with title "Video Trimmer")')
+
+
+  # Validate input
+  if [[ -z "$trim_start" || -z "$trim_end" ]]; then
+    osascript -e 'display dialog "Both start and end trims are required." buttons {"OK"} with title "Video Trimmer"'
+    exit 1
+  fi
+
+
+  if ! [[ "$trim_start" =~ '^[0-9]+([.][0-9]+)?$' ]] || ! [[ "$trim_end" =~ '^[0-9]+([.][0-9]+)?$' ]]; then
+    osascript -e 'display dialog "Start and end trims must be numeric." buttons {"OK"} with title "Video Trimmer"'
+    exit 1
+  fi
+
+
+  # Prompt for output path
+  output_path=$(osascript -e 'POSIX path of (choose file name with prompt "Save trimmed video as:" default name "trimmed-video.mp4")')
+
+
+  # Ensure extension matches source
+  ext="${input_file##*.}"
+  if [[ "$output_path" != *.$ext ]]; then
+    output_path="${output_path}.${ext}"
+  fi
+
+
+  # Get duration
+  duration=$(/opt/homebrew/bin/ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$input_file" 2>/dev/null)
+  duration=${duration%.*}
+
+
+  # Calculate duration to keep
+  trim_duration=$(echo "$duration - $trim_start - $trim_end" | bc)
+  if (( $(echo "$trim_duration <= 0" | bc -l) )); then
+    osascript -e "display dialog \"Trim duration too short! Original is $duration seconds.\" buttons {\"OK\"} with title \"Video Trimmer\""
+    exit 1
+  fi
+
+
+  # Handle overwrite
+  if [[ -e "$output_path" ]]; then
+    user_choice=$(osascript -e 'button returned of (display dialog "Output file exists. Overwrite it?" buttons {"Cancel", "Overwrite"} default button "Overwrite" with title "Video Trimmer")')
+    if [[ "$user_choice" != "Overwrite" ]]; then
+      exit 1
+    fi
+    rm -f "$output_path"
+  fi
+
+
+  # Notify start
+  osascript -e "display notification \"Trimming start=$trim_start s, end=$trim_end s...\" with title \"Video Trimmer\""
+
+
+  # Run ffmpeg
+  /opt/homebrew/bin/ffmpeg -ss "$trim_start" -i "$input_file" -t "$trim_duration" \
+    -c:v libx264 -preset slow -crf 22 \
+    -c:a aac -b:a 160k -movflags +faststart "$output_path" \
+    > /dev/null 2>&1
+
+
+  # Notify result
+  if [[ $? -eq 0 ]]; then
+    osascript -e "display notification \"Saved: $(basename "$output_path")\" with title \"Video Trimmer\""
+  else
+    osascript -e 'display dialog "Something went wrong during encoding." buttons {"OK"} with title "Video Trimmer"'
+  fi
+done
