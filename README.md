@@ -1,6 +1,8 @@
 # mac-quick-ffmpeg
 Mac Quick Action Video Compression
 
+For Windows users - [https://www.gyan.dev/ffmpeg/builds/ ] and then just use the command line with the part of the script that is using ffmpeg.
+
 This is a quick action setup using Automator for Mac
 It will allow you to right click a movie file and run tight compression on it.
 
