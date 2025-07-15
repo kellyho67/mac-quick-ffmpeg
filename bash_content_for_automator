@@ -1,7 +1,13 @@
 #!/bin/zsh
 
+# Process only the first file
+input_file="$1"
 
-for input_file in "$@"; do
+# Check if we have a file to process
+if [[ -z "$input_file" ]]; then
+  osascript -e 'display dialog "No file selected." buttons {"OK"} with title "Video Trimmer"'
+  exit 1
+fi
   # Prompt for trim start
   trim_start=$(osascript -e 'text returned of (display dialog "Trim how many seconds from the START?" default answer "" with title "Video Trimmer")')
 
@@ -27,10 +33,9 @@ for input_file in "$@"; do
   output_path=$(osascript -e 'POSIX path of (choose file name with prompt "Save trimmed video as:" default name "trimmed-video.mp4")')
 
 
-  # Ensure extension matches source
-  ext="${input_file##*.}"
-  if [[ "$output_path" != *.$ext ]]; then
-    output_path="${output_path}.${ext}"
+  # Ensure output has .mp4 extension
+  if [[ "$output_path" != *.mp4 ]]; then
+    output_path="${output_path}.mp4"
   fi
 
 
@@ -61,9 +66,9 @@ for input_file in "$@"; do
   osascript -e "display notification \"Trimming start=$trim_start s, end=$trim_end s...\" with title \"Video Trimmer\""
 
 
-  # Run ffmpeg
+  # Run ffmpeg with scaling
   /opt/homebrew/bin/ffmpeg -ss "$trim_start" -i "$input_file" -t "$trim_duration" \
-    -c:v libx264 -preset slow -crf 22 \
+    -vf format=yuv420p,scale=720:-2 -c:v libx264 -preset slow -crf 22 \
     -c:a aac -b:a 160k -movflags +faststart "$output_path" \
     > /dev/null 2>&1
 
@@ -74,4 +79,3 @@ for input_file in "$@"; do
   else
     osascript -e 'display dialog "Something went wrong during encoding." buttons {"OK"} with title "Video Trimmer"'
   fi
-done
