@@ -8,19 +8,18 @@ if [[ -z "$input_file" ]]; then
   osascript -e 'display dialog "No file selected." buttons {"OK"} with title "Video Trimmer"'
   exit 1
 fi
-  # Prompt for trim start
-  trim_start=$(osascript -e 'text returned of (display dialog "Trim how many seconds from the START?" default answer "" with title "Video Trimmer")')
+
+# Prompt for trim start
+  trim_start=$(osascript -e 'text returned of (display dialog "Trim how many seconds from the START?" default answer "0" with title "Video Trimmer")')
 
 
   # Prompt for trim end
-  trim_end=$(osascript -e 'text returned of (display dialog "Trim how many seconds from the END?" default answer "" with title "Video Trimmer")')
+  trim_end=$(osascript -e 'text returned of (display dialog "Trim how many seconds from the END?" default answer "0" with title "Video Trimmer")')
 
 
-  # Validate input
-  if [[ -z "$trim_start" || -z "$trim_end" ]]; then
-    osascript -e 'display dialog "Both start and end trims are required." buttons {"OK"} with title "Video Trimmer"'
-    exit 1
-  fi
+  # Set defaults if empty
+  trim_start=${trim_start:-0}
+  trim_end=${trim_end:-0}
 
 
   if ! [[ "$trim_start" =~ '^[0-9]+([.][0-9]+)?$' ]] || ! [[ "$trim_end" =~ '^[0-9]+([.][0-9]+)?$' ]]; then
@@ -39,6 +38,12 @@ fi
   fi
 
 
+  # Remove existing file if it exists (file dialog already confirmed overwrite)
+  if [[ -e "$output_path" ]]; then
+    rm -f "$output_path"
+  fi
+
+
   # Get duration
   duration=$(/opt/homebrew/bin/ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$input_file" 2>/dev/null)
   duration=${duration%.*}
@@ -52,14 +57,7 @@ fi
   fi
 
 
-  # Handle overwrite
-  if [[ -e "$output_path" ]]; then
-    user_choice=$(osascript -e 'button returned of (display dialog "Output file exists. Overwrite it?" buttons {"Cancel", "Overwrite"} default button "Overwrite" with title "Video Trimmer")')
-    if [[ "$user_choice" != "Overwrite" ]]; then
-      exit 1
-    fi
-    rm -f "$output_path"
-  fi
+
 
 
   # Notify start
