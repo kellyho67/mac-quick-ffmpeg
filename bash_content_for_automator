@@ -11,10 +11,20 @@ fi
 
 # Prompt for trim start
   trim_start=$(osascript -e 'text returned of (display dialog "Trim how many seconds from the START?" default answer "0" with title "Video Trimmer")')
+  
+  # Check if user cancelled
+  if [[ $? -ne 0 ]]; then
+    exit 0
+  fi
 
 
   # Prompt for trim end
   trim_end=$(osascript -e 'text returned of (display dialog "Trim how many seconds from the END?" default answer "0" with title "Video Trimmer")')
+  
+  # Check if user cancelled
+  if [[ $? -ne 0 ]]; then
+    exit 0
+  fi
 
 
   # Set defaults if empty
@@ -28,8 +38,33 @@ fi
   fi
 
 
+  # Ask for scaling
+  scale_input=$(osascript -e 'text returned of (display dialog "Enter scaling (720, 1080, HD,4K, or leave empty for no scaling):" default answer "" with title "Video Trimmer")')
+  
+  # Check if user cancelled
+  if [[ $? -ne 0 ]]; then
+    exit 0
+  fi
+  
+  # Trim whitespace and set scale filter
+  scale_input=$(echo "$scale_input" | tr -d ' ')
+  
+  case "$scale_input" in
+    "720") scale_filter="-vf format=yuv420p,scale=720:-2" ;;
+    "1080") scale_filter="-vf format=yuv420p,scale=1080:-2" ;;
+    "HD") scale_filter="-vf format=yuv420p,scale=1920:-2" ;;
+    "4K") scale_filter="-vf format=yuv420p,scale=3840:-2" ;;
+    *) scale_filter="" ;; # No scaling
+  esac
+
+
   # Prompt for output path
   output_path=$(osascript -e 'POSIX path of (choose file name with prompt "Save trimmed video as:" default name "trimmed-video.mp4")')
+  
+  # Check if user cancelled
+  if [[ $? -ne 0 ]]; then
+    exit 0
+  fi
 
 
   # Ensure output has .mp4 extension
@@ -64,11 +99,18 @@ fi
   osascript -e "display notification \"Trimming start=$trim_start s, end=$trim_end s...\" with title \"Video Trimmer\""
 
 
-  # Run ffmpeg with scaling
-  /opt/homebrew/bin/ffmpeg -ss "$trim_start" -i "$input_file" -t "$trim_duration" \
-    -vf format=yuv420p,scale=720:-2 -c:v libx264 -preset slow -crf 22 \
-    -c:a aac -b:a 160k -movflags +faststart "$output_path" \
-    > /dev/null 2>&1
+  # Build ffmpeg command
+  if [[ -n "$scale_filter" ]]; then
+    # With scaling
+    ffmpeg_command="/opt/homebrew/bin/ffmpeg -ss \"$trim_start\" -i \"$input_file\" -t \"$trim_duration\" $scale_filter -c:v libx264 -preset slow -crf 22 -c:a aac -b:a 160k -movflags +faststart \"$output_path\""
+  else
+    # Without scaling
+    ffmpeg_command="/opt/homebrew/bin/ffmpeg -ss \"$trim_start\" -i \"$input_file\" -t \"$trim_duration\" -c:v libx264 -preset slow -crf 22 -c:a aac -b:a 160k -movflags +faststart \"$output_path\""
+  fi
+  
+    
+  # Execute the command
+  eval "$ffmpeg_command" > /dev/null 2>&1
 
 
   # Notify result
