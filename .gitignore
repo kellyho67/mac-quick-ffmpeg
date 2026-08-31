@@ -1,0 +1,35 @@
+
+# --- Amberline secret-hygiene standard (08/31/2026) ---
+# Env files in every form, including editor swap and backup copies. A vim swap
+# of .env (.env.swp) once leaked keys into GitHub history; these patterns and
+# the gitleaks pre-commit hook exist so that never repeats.
+.env
+.env.*
+*.env
+!.env.example
+!.env.template
+!.env.sample
+*.sw[a-p]
+.*.sw[a-p]
+*~
+.#*
+\#*#
+*.orig
+*.rej
+Session.vim
+.netrwhist
+*.pem
+*.key
+*.p12
+*.pfx
+*.p8
+*.mobileprovision
+*.keystore
+*.jks
+credentials*.json
+service-account*.json
+.netrc
+.DS_Store
+._*
+.claude/settings.local.json
+# --- end standard block ---
